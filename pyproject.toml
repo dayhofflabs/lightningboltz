@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sseqs"
-version = "0.0.8"
+version = "0.0.9"
 description = "Simple MSA"
 readme = "README.md"
 requires-python = ">=3.9"

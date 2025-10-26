@@ -50,8 +50,10 @@ if sys.argv[-1] != '-loaded':
     pinned_ram = [th.empty((1_000_000_000), dtype=th.uint8, pin_memory=True) for _ in tqdm(range(chunks), desc=f"Preparing {chunks}GB of pinned RAM. ")]
 
     with open(xbit_path, "rb") as fh:
+        # todo:  rewrite to numpy slicing notation, e.g., SLICE=[7:117:7]
+        skip = int(os.environ.get('SKIP', 0))
         for i, t in enumerate(tqdm(pinned_ram[:uniref_bfd_chunks], desc=f"Reading {chunks}GB MSA data from `{xbit_path}` into pinned RAM. ")):
-            fh.seek(i * 1000 * 1000 * 1000)
+            fh.seek( (i+skip) * 1000 * 1000 * 1000)
             fh.readinto(t.numpy())
 
     # Read antibody dataset. 
@@ -180,7 +182,7 @@ def msa(queries,
         copy_stream = th.cuda.Stream(gpu)   # create once at start
         compute_stream = th.cuda.Stream(gpu)   # create once at start
 
-        MAX_GOOD_INDXs = 500
+        MAX_GOOD_INDXs = 1000
         preallocated_arange = th.arange(int(MAX_GOOD_INDXs), device='cuda', dtype=th.int32)
         b = th.zeros_like(pinned_ram[0], device='cuda')
 
@@ -363,7 +365,7 @@ def msa(queries,
                         sw_scores, scores = sw_scores[good_idx], scores[good_idx]
                         good_starts, good_stops = good_starts[good_idx], good_stops[good_idx]
 
-                        #_arange = torch.arange(th.max(good_stops), device='cuda')
+                        # asynch way to compute:  _arange = torch.arange(th.max(good_stops), device='cuda')
                         _arange = (preallocated_arange < th.max(good_stops)).nonzero(as_tuple=True)[0]
                         idx  = good_starts[:, None] + _arange
                         current_batch_seqs = ascii.expand(idx.size(0), -1).gather(1, idx)
